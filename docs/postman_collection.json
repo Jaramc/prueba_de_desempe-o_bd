@@ -1,0 +1,207 @@
+{
+  "info": {
+    "name": "MegaStore API",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Collection for the MegaStore Global API - includes migration, CRUD and BI reports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:3000/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": [""]
+        }
+      }
+    },
+    {
+      "name": "Migration",
+      "item": [
+        {
+          "name": "Run Bulk Migration",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/migrate",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "migrate"]
+            },
+            "description": "Reads docs/data.csv and loads all data into PostgreSQL. Safe to run multiple times."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products CRUD",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "products", "1"]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-NEW-01\",\n  \"name\": \"Test Product\",\n  \"unit_price\": 99000,\n  \"category_id\": 1,\n  \"supplier_id\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"TEST-NEW-01\",\n  \"name\": \"Test Product Updated\",\n  \"unit_price\": 120000,\n  \"category_id\": 1,\n  \"supplier_id\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "products", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "http://localhost:3000/api/products/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "products", "1"]
+            },
+            "description": "Deletes the product and saves an audit log in MongoDB"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports (BI)",
+      "item": [
+        {
+          "name": "Supplier Analysis",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/reports/suppliers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "reports", "suppliers"]
+            },
+            "description": "Suppliers ranked by total items sold and total inventory value"
+          }
+        },
+        {
+          "name": "Customer Purchase History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/reports/customer/andres.lopez@gmail.com",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "reports", "customer", "andres.lopez@gmail.com"]
+            },
+            "description": "Full purchase history for a specific customer by email"
+          }
+        },
+        {
+          "name": "Top Products - Electronics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/reports/top-products/Electronics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "reports", "top-products", "Electronics"]
+            },
+            "description": "Best selling products in Electronics category ordered by revenue"
+          }
+        },
+        {
+          "name": "Top Products - Accessories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/reports/top-products/Accessories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "reports", "top-products", "Accessories"]
+            }
+          }
+        },
+        {
+          "name": "Top Products - Home",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:3000/api/reports/top-products/Home",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "reports", "top-products", "Home"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

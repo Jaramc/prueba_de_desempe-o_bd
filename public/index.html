@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MegaStore Global — Admin Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <style>
+    body { background-color: #f0f2f5; }
+    .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
+    .table th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; }
+    .table td { vertical-align: middle; }
+    .badge-category { background-color: #e8f4fd; color: #0d6efd; font-weight: 500; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; }
+    .result-box { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 0.85rem; max-height: 380px; overflow-y: auto; white-space: pre-wrap; }
+    .nav-tabs .nav-link { color: #495057; font-weight: 500; }
+    .nav-tabs .nav-link.active { font-weight: 700; }
+    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-dark px-4 mb-4">
+  <span class="navbar-brand"><i class="bi bi-box-seam me-2"></i>MegaStore Global</span>
+  <span class="text-secondary small">Admin Panel v1.0</span>
+</nav>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<div class="container-fluid px-4 pb-5">
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="mainTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-migration"><i class="bi bi-upload me-1"></i>Migration</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-products"><i class="bi bi-box me-1"></i>Products</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-reports"><i class="bi bi-bar-chart me-1"></i>Reports</a></li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ===================== TAB MIGRATION ===================== -->
+    <div class="tab-pane fade show active" id="tab-migration">
+      <div class="row g-4">
+        <div class="col-md-5">
+          <div class="card">
+            <div class="card-header bg-dark text-white"><i class="bi bi-database-up me-2"></i>Bulk Data Migration</div>
+            <div class="card-body">
+              <p class="text-muted small">Loads the CSV file (<code>docs/data.csv</code>) and distributes the data across all PostgreSQL tables. Safe to run multiple times.</p>
+              <ul class="small text-muted mb-4">
+                <li>Creates customers, suppliers, categories, products and orders</li>
+                <li>Skips duplicates automatically (idempotent)</li>
+                <li>Uses <code>ON CONFLICT</code> to avoid errors on re-runs</li>
+              </ul>
+              <button class="btn btn-dark w-100" onclick="runMigration()" id="btn-migrate">
+                <i class="bi bi-play-fill me-2"></i>Run Migration
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-7">
+          <div class="card h-100">
+            <div class="card-header bg-secondary text-white"><i class="bi bi-terminal me-2"></i>Response</div>
+            <div class="card-body">
+              <div class="result-box" id="migration-result">// Response will appear here...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== TAB PRODUCTS ===================== -->
+    <div class="tab-pane fade" id="tab-products">
+      <div class="row g-4">
+
+        <!-- Form crear/editar -->
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header bg-primary text-white"><i class="bi bi-plus-circle me-2"></i><span id="form-title">New Product</span></div>
+            <div class="card-body">
+              <input type="hidden" id="product-id"/>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">SKU</label>
+                <input type="text" class="form-control form-control-sm" id="p-sku" placeholder="e.g. MON-G-50"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Product Name</label>
+                <input type="text" class="form-control form-control-sm" id="p-name" placeholder="e.g. Mouse Logitech M502"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Unit Price (COP)</label>
+                <input type="number" class="form-control form-control-sm" id="p-price" placeholder="e.g. 150000"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Category ID</label>
+                <input type="number" class="form-control form-control-sm" id="p-category" placeholder="e.g. 1"/>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Supplier ID</label>
+                <input type="number" class="form-control form-control-sm" id="p-supplier" placeholder="e.g. 1"/>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-primary btn-sm flex-fill" onclick="saveProduct()"><i class="bi bi-check-lg me-1"></i>Save</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="clearForm()"><i class="bi bi-x-lg"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla productos -->
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-table me-2"></i>Products List</span>
+              <button class="btn btn-sm btn-light" onclick="loadProducts()"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th><th>SKU</th><th>Name</th><th>Price</th><th>Category</th><th>Supplier</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="products-table">
+                    <tr><td colspan="7" class="text-center text-muted py-4">Click refresh to load products</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===================== TAB REPORTS ===================== -->
+    <div class="tab-pane fade" id="tab-reports">
+      <div class="row g-4">
+
+        <!-- Suppliers -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-truck me-2"></i>Supplier Analysis — Items sold &amp; inventory value</span>
+              <button class="btn btn-sm btn-light" onclick="loadSuppliers()"><i class="bi bi-play-fill me-1"></i>Run</button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr><th>Supplier</th><th>Email</th><th>Total Items Sold</th><th>Total Inventory Value</th></tr>
+                  </thead>
+                  <tbody id="suppliers-table">
+                    <tr><td colspan="4" class="text-center text-muted py-3">Click Run to load</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer history -->
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-info text-white"><i class="bi bi-person-lines-fill me-2"></i>Customer Purchase History</div>
+            <div class="card-body">
+              <div class="input-group input-group-sm mb-3">
+                <input type="email" class="form-control" id="customer-email" placeholder="customer@email.com"/>
+                <button class="btn btn-info text-white" onclick="loadCustomerHistory()"><i class="bi bi-search"></i></button>
+              </div>
+              <div class="result-box" id="customer-result">// Enter an email and click search...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top products -->
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-warning"><i class="bi bi-star-fill me-2"></i>Top Products by Category</div>
+            <div class="card-body">
+              <div class="input-group input-group-sm mb-3">
+                <select class="form-select" id="category-select">
+                  <option value="Electronics">Electronics</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Home">Home</option>
+                </select>
+                <button class="btn btn-warning" onclick="loadTopProducts()"><i class="bi bi-bar-chart-fill"></i></button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead class="table-light">
+                    <tr><th>SKU</th><th>Product</th><th>Units Sold</th><th>Revenue</th></tr>
+                  </thead>
+                  <tbody id="top-products-table">
+                    <tr><td colspan="4" class="text-center text-muted py-3">Select a category and click run</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal confirmar delete -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h6 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Delete Product</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body small">
+        Are you sure? This action will also save an audit log in MongoDB.
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="confirm-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API = 'http://localhost:3000';
+
+  // --- TOAST ---
+  function toast(msg, type = 'success') {
+    const id = 'toast-' + Date.now();
+    const color = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : 'bg-warning text-dark';
+    document.getElementById('toast-container').insertAdjacentHTML('beforeend', `
+      <div id="${id}" class="toast align-items-center text-white ${color} border-0 show mb-2" role="alert">
+        <div class="d-flex">
+          <div class="toast-body small">${msg}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="document.getElementById('${id}').remove()"></button>
+        </div>
+      </div>
+    `);
+    setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 4000);
+  }
+
+  // --- MIGRATION ---
+  async function runMigration() {
+    const btn = document.getElementById('btn-migrate');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Running...';
+    document.getElementById('migration-result').textContent = '// Loading...';
+    try {
+      const res = await fetch(`${API}/api/migrate`, { method: 'POST' });
+      const data = await res.json();
+      document.getElementById('migration-result').textContent = JSON.stringify(data, null, 2);
+      toast(data.message || 'Migration done', res.ok ? 'success' : 'danger');
+    } catch (e) {
+      document.getElementById('migration-result').textContent = '// Error: ' + e.message;
+      toast('Could not connect to the server', 'danger');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-2"></i>Run Migration';
+  }
+
+  // --- PRODUCTS ---
+  async function loadProducts() {
+    try {
+      const res = await fetch(`${API}/api/products`);
+      const data = await res.json();
+      const tbody = document.getElementById('products-table');
+      if (!data.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No products found. Run migration first.</td></tr>'; return; }
+      tbody.innerHTML = data.map(p => `
+        <tr>
+          <td><span class="text-muted">${p.id}</span></td>
+          <td><code>${p.sku}</code></td>
+          <td>${p.name}</td>
+          <td>${formatCOP(p.unit_price)}</td>
+          <td><span class="badge-category">${p.category}</span></td>
+          <td>${p.supplier}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editProduct(${p.id},'${p.sku}','${p.name}',${p.unit_price})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="confirmDelete(${p.id})"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      toast('Could not load products: ' + e.message, 'danger');
+    }
+  }
+
+  async function saveProduct() {
+    const id = document.getElementById('product-id').value;
+    const body = {
+      sku: document.getElementById('p-sku').value.trim(),
+      name: document.getElementById('p-name').value.trim(),
+      unit_price: parseFloat(document.getElementById('p-price').value),
+      category_id: parseInt(document.getElementById('p-category').value),
+      supplier_id: parseInt(document.getElementById('p-supplier').value),
+    };
+    if (!body.sku || !body.name || !body.unit_price || !body.category_id || !body.supplier_id) {
+      toast('All fields are required', 'warning'); return;
+    }
+    try {
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? `${API}/api/products/${id}` : `${API}/api/products`;
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || 'Error saving product', 'danger'); return; }
+      toast(id ? 'Product updated!' : 'Product created!');
+      clearForm();
+      loadProducts();
+    } catch (e) {
+      toast('Error: ' + e.message, 'danger');
+    }
+  }
+
+  function editProduct(id, sku, name, price) {
+    document.getElementById('product-id').value = id;
+    document.getElementById('p-sku').value = sku;
+    document.getElementById('p-name').value = name;
+    document.getElementById('p-price').value = price;
+    document.getElementById('form-title').textContent = 'Edit Product #' + id;
+    // scroll to form
+    document.querySelector('#tab-products .card').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function clearForm() {
+    ['product-id','p-sku','p-name','p-price','p-category','p-supplier'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('form-title').textContent = 'New Product';
+  }
+
+  let deleteTargetId = null;
+  const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+  function confirmDelete(id) {
+    deleteTargetId = id;
+    deleteModal.show();
+  }
+
+  document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+    deleteModal.hide();
+    try {
+      const res = await fetch(`${API}/api/products/${deleteTargetId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || 'Error deleting', 'danger'); return; }
+      toast('Product deleted. Audit log saved in MongoDB.');
+      loadProducts();
+    } catch (e) {
+      toast('Error: ' + e.message, 'danger');
+    }
+  });
+
+  // --- REPORTS ---
+  async function loadSuppliers() {
+    try {
+      const res = await fetch(`${API}/api/reports/suppliers`);
+      const data = await res.json();
+      const tbody = document.getElementById('suppliers-table');
+      if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No data. Run migration first.</td></tr>'; return; }
+      tbody.innerHTML = data.map(s => `
+        <tr>
+          <td><strong>${s.supplier}</strong></td>
+          <td><a href="mailto:${s.supplier_email}">${s.supplier_email}</a></td>
+          <td><span class="badge bg-primary">${s.total_items_sold}</span></td>
+          <td><strong>${formatCOP(s.total_inventory_value)}</strong></td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      toast('Error loading suppliers: ' + e.message, 'danger');
+    }
+  }
+
+  async function loadCustomerHistory() {
+    const email = document.getElementById('customer-email').value.trim();
+    if (!email) { toast('Enter an email first', 'warning'); return; }
+    const box = document.getElementById('customer-result');
+    box.textContent = '// Loading...';
+    try {
+      const res = await fetch(`${API}/api/reports/customer/${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!res.ok) { box.textContent = '// ' + (data.error || 'Not found'); return; }
+      box.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      box.textContent = '// Error: ' + e.message;
+    }
+  }
+
+  async function loadTopProducts() {
+    const category = document.getElementById('category-select').value;
+    try {
+      const res = await fetch(`${API}/api/reports/top-products/${category}`);
+      const data = await res.json();
+      const tbody = document.getElementById('top-products-table');
+      if (!res.ok || !data.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No data found</td></tr>'; return; }
+      tbody.innerHTML = data.map((p, i) => `
+        <tr>
+          <td><code>${p.sku}</code></td>
+          <td>${p.product_name} ${i === 0 ? '<span class="badge bg-warning text-dark ms-1">⭐ #1</span>' : ''}</td>
+          <td>${p.total_units_sold}</td>
+          <td><strong>${formatCOP(p.total_revenue)}</strong></td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      toast('Error loading top products: ' + e.message, 'danger');
+    }
+  }
+
+  // --- UTILS ---
+  function formatCOP(value) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+  }
+</script>
+</body>
+</html>
